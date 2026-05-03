@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown 编辑器</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<!-- CodeMirror 编辑器（语法高亮） -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material.css">
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.js"></script>
+<!-- KaTeX 数学公式 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.10/dist/katex.min.js"></script>
+<!-- Mermaid 流程图 -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+<!-- AntV Infographic 信息图 -->
+<script src="https://cdn.jsdelivr.net/npm/@antv/infographic@0.2.18/dist/infographic.min.js"></script>
+<!-- PlantUML 流程图编码器 -->
+<script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+<style>
+/* ===== 全局变量：改颜色/字号这里就是入口 ===== */
+:root {
+  --bg: #ffffff;
+  --bg-editor: #fafafa;
+  --text: #333333;
+  --text-light: #666666;
+  --border: #e5e5e5;
+  --accent: #2ab1ee;
+  --toolbar-bg: #f8f9fa;
+  --radius: 8px;
+  --content-width: 680px;
+  --editor-font-size: 15px;
+  --preview-font-size: 15px;
+  --line-height: 1.8;
+}
+
+/* 深色模式 */
+body.dark {
+  --bg: #1e1e1e;
+  --bg-editor: #252526;
+  --text: #d4d4d4;
+  --text-light: #999999;
+  --border: #3e3e3e;
+  --toolbar-bg: #2d2d2d;
+}
+
+/* ===== 基础重置 ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Times New Roman", "宋体", serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ===== 顶部工具栏 ===== */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.toolbar .title {
+  font-size: 14px;
+  font-weight: bold;
+  margin-right: 16px;
+  white-space: nowrap;
+}
+.toolbar button {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.toolbar button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.toolbar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.toolbar .gap { flex: 1; }
+.toolbar .hint {
+  font-size: 12px;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+/* ===== 主体：左右分栏 ===== */
+.main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 左侧编辑区 */
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.editor-pane .CodeMirror {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: auto;
+  font-size: var(--editor-font-size);
+  font-family: "Consolas", "Courier New", monospace;
+  line-height: var(--line-height);
+  background: var(--bg-editor);
+  color: var(--text);
+}
+.editor-pane .CodeMirror-scroll {
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+.editor-pane .CodeMirror-gutters {
+  background: var(--bg-editor);
+  border-right: 1px solid var(--border);
+}
+.editor-pane .CodeMirror-linenumber { color: var(--text-light); }
+.editor-pane .CodeMirror-cursor { border-left-color: var(--accent); }
+.editor-pane .CodeMirror-activeline-background { background: rgba(0,0,0,0.03); }
+
+/* 右侧容器：预览 + 竖排 CSS 面板 */
+.right-pane {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+/* 预览区 */
+.preview-pane {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 0;
+  min-width: 0;
+}
+.preview-content {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 24px;
+  font-size: var(--preview-font-size);
+  line-height: var(--line-height);
+  color: var(--text);
+}
+
+/* ===== 右侧竖排 CSS 面板 ===== */
+.css-panel {
+  border-left: 1px solid var(--border);
+  background: var(--toolbar-bg);
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  flex-shrink: 0;
+}
+.css-panel.hidden { display: none; }
+.css-panel textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 16px 18px;
+  font-size: 13px;
+  font-family: "Consolas", "Courier New", monospace;
+  background: var(--bg-editor);
+  color: var(--text);
+  line-height: 1.7;
+  min-height: 0;
+}
+.css-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.css-toolbar button {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.css-toolbar button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ===== 格式帮助面板 ===== */
+.help-panel {
+  border-top: 1px solid var(--border);
+  background: var(--toolbar-bg);
+  padding: 16px 20px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text);
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.help-panel.hidden { display: none; }
+.help-panel code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-family: Consolas,monospace; }
+.help-panel strong { color: var(--accent); }
+
+/* ===== 标题样式 ===== */
+.preview-content h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 32px 0 18px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--accent);
+  color: #2c3e50;
+}
+.preview-content h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 28px 0 14px;
+  padding-left: 14px;
+  border-left: 4px solid var(--accent);
+  color: #2c3e50;
+}
+.preview-content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 22px 0 10px;
+  color: #444;
+}
+.preview-content p  { margin: 12px 0; }
+.preview-content a  { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent); }
+.preview-content a:hover { opacity: 0.7; }
+.preview-content strong { color: #000; }
+.preview-content img { max-width: 100%; border-radius: var(--radius); margin: 12px 0; }
+.preview-content ul, .preview-content ol { padding-left: 24px; margin: 12px 0; }
+.preview-content li { margin: 4px 0; }
+.preview-content blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 4px solid var(--accent);
+  background: #f0f9ff;
+  color: #555;
+}
+.preview-content blockquote p { margin: 4px 0; }
+
+/* macOS 风格代码块：深色背景 + 右上角三个彩色圆点 */
+.preview-content pre {
+  position: relative;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 36px 20px 16px;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 20px 0;
+  line-height: 1.7;
+  font-size: 14px;
+}
+.preview-content pre::before {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  width: 12px;
+  height: 12px;
+  background: #ff5f56;
+  border-radius: 50%;
+  box-shadow: 22px 0 0 #ffbd2e, 44px 0 0 #27c93f;
+}
+.preview-content pre code {
+  background: none;
+  padding: 0;
+  color: #d4d4d4;
+  font-size: 14px;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+.preview-content p code, .preview-content li code {
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: #e056a0;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+.preview-content hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+.preview-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+.preview-content th, .preview-content td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+}
+.preview-content th { background: #f5f5f5; font-weight: bold; }
+
+/* 数学公式 */
+.preview-content .katex-display { margin: 20px 0; overflow-x: auto; }
+.preview-content .katex { font-size: 1.1em; }
+
+/* Ruby 注音 */
+.preview-content ruby { ruby-align: center; }
+.preview-content rt { font-size: 0.7em; color: #888; }
+
+/* PlantUML */
+.preview-content img[src*="plantuml"] {
+  background: #fafbfc;
+  padding: 8px;
+}
+
+/* Mermaid 流程图 */
+.preview-content .mermaid {
+  text-align: center;
+  margin: 20px 0;
+  padding: 16px;
+  background: #fafbfc;
+  border-radius: var(--radius);
+  border: 1px solid #eef1f5;
+}
+.preview-content .mermaid svg { max-width: 100%; }
+
+/* 深色模式下预览区额外覆盖 */
+body.dark .preview-content h1, body.dark .preview-content h2 { color: #e0e0e0; }
+body.dark .preview-content h3 { color: #ccc; }
+body.dark .preview-content strong { color: #fff; }
+body.dark .preview-content code { background: #3e3e3e; }
+body.dark .preview-content pre { background: #0d0d0d; }
+body.dark .preview-content pre code { color: #ccc; }
+body.dark .preview-content blockquote { background: #1a3a4a; color: #aaa; }
+body.dark .preview-content th { background: #2d2d2d; }
+body.dark .preview-content .mermaid { background: #2d2d2d; border-color: #3e3e3e; }
+</style>
+</head>
+<body>
+
+<!-- 工具栏 -->
+<div class="toolbar">
+  <span class="title">Markdown 编辑器</span>
+  <button onclick="insertDemo()" title="填充示例文章">示例</button>
+  <button onclick="copyHTML()" style="font-weight:bold;">📋 复制右边文章</button>
+  <button onclick="copyText()">复制原文</button>
+  <button onclick="toggleCSS()">自定义CSS</button>
+  <button onclick="toggleHelp()">格式帮助</button>
+  <button onclick="toggleTheme()">深色/浅色</button>
+  <button id="syncBtn" onclick="toggleSync()">同步滚动: 关</button>
+  <span class="gap"></span>
+  <span class="hint">左边写 → 右边预览 → 复制到公众号</span>
+</div>
+
+<!-- 左右分栏 -->
+<div class="main">
+  <div class="editor-pane">
+    <div id="editor"></div>
+  </div>
+  <div class="right-pane">
+    <div class="preview-pane">
+      <div id="preview" class="preview-content"></div>
+    </div>
+    <!-- 右侧竖排 CSS 面板 -->
+    <div id="cssPanel" class="css-panel hidden">
+      <textarea id="customCSS" placeholder="/* ─── 格式自定义面板 ─── */&#10;/* 改标题颜色 */  h1 { color: #e74c3c; }&#10;/* 改正文字号 */  p { font-size: 16px; }&#10;/* 改正文行距 */  p { line-height: 2; }&#10;/* 改代码块背景 */  pre { background: #1e1e1e; color: #eee; }&#10;/* 改链接颜色 */  a { color: #e74c3c; }&#10;/* 改引用块左边框 */  blockquote { border-left-color: #e74c3c; }&#10;/* ─── 图片相关 ─── */&#10;/* 插入图片请用 Markdown 语法：![](图片地址) */&#10;/* 改图片圆角 */  img { border-radius: 4px; }&#10;/* 改图片最大宽度 */  img { max-width: 100%; }"></textarea>
+      <div class="css-toolbar">
+        <select id="themeSelect" onchange="loadTheme(this.value)" style="flex:1;padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;background:var(--bg);color:var(--text);font-family:inherit;">
+          <option value="__default__">默认（无样式）</option>
+        </select>
+        <button onclick="saveTheme()">保存当前</button>
+        <button onclick="deleteTheme()">删除主题</button>
+        <span style="font-size:11px;color:var(--text-light);">自动保存</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 格式帮助面板 -->
+<div id="helpPanel" class="help-panel hidden">
+  <strong>📝 Markdown 语法</strong><br>
+  <code># 标题</code> <code>## 标题</code> <code>### 标题</code> · <code>**粗体**</code> <code>*斜体*</code> · <code>[文字](链接)</code> <code>![](图片地址)</code><br>
+  <code>- 列表</code> <code>1. 列表</code> · <code>&gt; 引用</code> · <code>&#96;&#96;&#96;语言</code>代码<code>&#96;&#96;&#96;</code><br>
+  <code>| 列 | 列 |</code>表格 · <code>---</code>分割线 · <code>$$公式$$</code> 数学 · <code>&#96;&#96;&#96;mermaid</code> 流程图<br>
+  <code>&#96;&#96;&#96;infographic</code> 信息图 · <code>@startuml</code> PlantUML · <code>[字]{音}</code> 注音<br>
+  <code>:joy:</code> 表情 &nbsp; 常用：<code>:smile:</code> <code>:heart:</code> <code>:fire:</code> <code>:rocket:</code> <code>:tada:</code> <code>:+1:</code><br><br>
+
+  <strong>🎨 常用 CSS（粘贴到右侧样式面板）</strong><br>
+  正文字号：<code>p { font-size: 16px; }</code> &nbsp; 行距：<code>p { line-height: 2; }</code> &nbsp; 字体：<code>* { font-family: "微软雅黑"; }</code><br>
+  主题色：<code>a { color: #e74c3c; }</code> &nbsp; 标题色：<code>h1 { color: #333; }</code><br>
+  标题居中：<code>h1 { text-align: center; border-bottom: none; }</code><br>
+  标题装饰线：<code>h1::after { content:''; display:block; width:50px; height:3px; background:#2ab1ee; margin:12px auto 0; }</code><br>
+  去掉标题装饰：<code>h1 { border-bottom: none; } h2 { border-left: none; padding-left: 0; }</code><br>
+  改竖线颜色：<code>h2 { border-left-color: #e74c3c; }</code><br>
+  去掉代码块圆点：<code>pre::before { display: none; }</code><br>
+  改回白色代码块：<code>pre { background: #f5f5f5 !important; } pre code { color: #333 !important; }</code><br>
+  图片圆角/阴影：<code>img { border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }</code><br><br>
+
+  <strong>📖 完整样式指南：</strong>打开同目录下的 <code>css.md</code> 文件，含四种预设主题、颜色速查表、所有元素的详细设置说明。
+</div>
+
+<!-- 示例文章内容 -->
+<script type="text/markdown" id="demoContent"># 探索 Markdown 的奇妙世界
+
+欢迎来到 Markdown 的奇妙世界！无论你是写作爱好者、开发者、博主，还是想要简单记录点什么的人，Markdown 都能成为你新的好伙伴。今天，我们将全面探讨 Markdown 的基础和进阶语法，让你在这个过程中充分享受写作的乐趣！
+
+## Markdown 基础语法
+
+### 1. 标题：让你的内容层次分明
+
+用 `#` 号来创建标题。`#` 的数量表示标题的级别。
+
+```markdown
+# 一级标题
+## 二级标题
+### 三级标题
+#### 四级标题
+```
+
+### 2. 段落与换行：自然流畅
+
+段落就是一行接一行的文本。要创建新段落，只需在两行文本之间空一行。
+
+### 3. 字体样式：强调你的文字
+
+- **粗体**：用两个星号包裹，如 `**粗体**`
+- *斜体*：用一个星号包裹，如 `*斜体*`
+- ~~删除线~~：用两个波浪线包裹，如 `~~删除线~~`
+
+### 4. 列表：整洁有序
+
+- 无序列表项 1
+- 无序列表项 2
+
+1. 有序列表项 1
+2. 有序列表项 2
+
+### 5. 链接与图片：丰富内容
+
+[访问 GitHub](https://github.com)
+
+![](https://cdn-doocs.oss-cn-shenzhen.aliyuncs.com/gh/doocs/md/images/logo-2.png)
+
+### 6. 引用：引用名言
+
+> 这是一个引用
+>
+> > 这是一个嵌套引用
+
+### 7. 代码块：展示你的代码
+
+行内代码：`console.log("Hello!")`
+
+```js
+console.log("Hello, Doocs!")
+```
+
+### 8. 分割线：分割内容
+
+---
+
+### 9. 表格：清晰展示数据
+
+| 项目人员 | 邮箱 | 微信号 |
+| --- | --- | --- |
+| 张三 | zs@example.com | zs123 |
+| 李四 | ls@example.com | ls456 |
+
+## Markdown 进阶技巧
+
+### 1. LaTeX 公式：完美展示数学表达式
+
+行内公式：$E = mc^2$
+
+块级公式：
+
+$$
+\begin{aligned}
+d_{i, j} &\leftarrow d_{i, j} + 1 \\
+d_{i, y + 1} &\leftarrow d_{i, y + 1} - 1
+\end{aligned}
+$$
+
+LaTeX 标准格式：\(x^2 + y^2 = z^2\)
+
+\[
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+\]
+
+### 2. Mermaid 流程图：可视化流程
+
+```mermaid
+graph LR
+  A[开始] --> B[处理]
+  B --> C[完成]
+  B --> D[失败]
+```
+
+```mermaid
+pie
+  title 为什么总是宅在家里？
+  "喜欢宅" : 45
+  "天气太热" : 70
+  "穷" : 500
+  "没人约" : 95
+```
+
+### 3. PlantUML 流程图
+
+```plantuml
+@startuml
+participant Participant as Foo
+actor Actor as Foo1
+Foo -> Foo1 : To actor
+@enduml
+```
+
+### 4. Infographic 信息图：可视化数据
+
+```infographic
+infographic list-row-horizontal-icon-arrow
+data
+  title 客户增长引擎
+  desc 多渠道触达与复购提升
+  items
+    - label 线索获取
+      value 18.6
+      desc 渠道投放与内容获客
+      icon rocket-launch
+    - label 转化提效
+      value 12.4
+      desc 线索评分与自动跟进
+      icon progress-check
+    - label 复购提升
+      value 9.8
+      desc 会员体系与权益运营
+      icon account-sync
+    - label 口碑传播
+      value 6.2
+      desc 社群激励与推荐裂变
+      icon account-group
+```
+
+### 5. Ruby 注音：注音标注
+
+[你好]{nǐ hǎo} [世界]{shì jiè}
+
+[你好世界]{nǐ・hǎo・shì・jiè}
+
+[小夜時雨]^(さ・よ・しぐれ)
+
+### 6. Emoji 表情
+
+常用表情：:smile: :joy: :heart: :fire: :rocket: :tada: :+1: :pray:
+
+## 结语
+
+Markdown 是一种简单、强大且易于掌握的标记语言。希望这篇内容能够带你全面了解 Markdown 的潜力，让你的写作更加丰富多彩！
+
+现在，拿起 Markdown 编辑器，开始创作吧！</script>
+
+<script>
+// ===== Emoji 短代码映射表 =====
+var EMOJI_MAP = {
+  // 笑脸
+  'smile':'😊','joy':'😂','laughing':'😆','grin':'😁','wink':'😉','stuck_out_tongue':'😛',
+  'sweat_smile':'😅','innocent':'😇','heart_eyes':'😍','kissing_heart':'😘','yum':'😋',
+  'relieved':'😌','pensive':'😔','worried':'😟','confused':'😕','cry':'😢','sob':'😭',
+  'angry':'😠','rage':'😡','triumph':'😤','disappointed':'😞','fearful':'😨','cold_sweat':'😰',
+  'scream':'😱','sleeping':'😴','mask':'😷','sunglasses':'😎','nerd':'🤓','thinking':'🤔',
+  'zipper_mouth':'🤐','rolling_eyes':'🙄','hugging':'🤗','upside_down':'🙃','shrug':'🤷',
+  'clown':'🤡','skull':'💀','poop':'💩','ghost':'👻','alien':'👽','robot':'🤖',
+  // 手势
+  'thumbsup':'👍','thumbsdown':'👎','clap':'👏','pray':'🙏','ok_hand':'👌','+1':'👍',
+  '-1':'👎','fist':'✊','v':'✌️','wave':'👋','raised_hands':'🙌','point_up':'👆',
+  'point_down':'👇','point_left':'👈','point_right':'👉','muscle':'💪',
+  // 心形
+  'heart':'❤️','blue_heart':'💙','purple_heart':'💜','green_heart':'💚','yellow_heart':'💛',
+  'black_heart':'🖤','broken_heart':'💔','sparkling_heart':'💖','two_hearts':'💕',
+  // 自然
+  'sunny':'☀️','star':'⭐','star2':'🌟','zap':'⚡','fire':'🔥','snowflake':'❄️',
+  'rainbow':'🌈','ocean':'🌊','cherry_blossom':'🌸','rose':'🌹','bouquet':'💐',
+  'mushroom':'🍄','four_leaf_clover':'🍀','seedling':'🌱','palm_tree':'🌴',
+  // 食物
+  'apple':'🍎','pizza':'🍕','hamburger':'🍔','coffee':'☕','beer':'🍺','cake':'🎂',
+  'sushi':'🍣','bento':'🍱','rice':'🍚','ramen':'🍜','doughnut':'🍩','cookie':'🍪',
+  'watermelon':'🍉','grapes':'🍇','banana':'🍌','taco':'🌮','burrito':'🌯',
+  // 活动
+  'tada':'🎉','sparkles':'✨','gift':'🎁','trophy':'🏆','medal':'🏅','bulb':'💡',
+  'rocket':'🚀','hourglass':'⏳','alarm_clock':'⏰','memo':'📝','book':'📖',
+  'mortar_board':'🎓','pencil2':'✏️','mag':'🔍','lock':'🔒','key':'🔑','pin':'📌',
+  // 标记
+  'check':'✅','x':'❌','warning':'⚠️','no_entry':'⛔','question':'❓','exclamation':'❗',
+  'heavy_check_mark':'✔️','heavy_multiplication_x':'✖️','bangbang':'‼️',
+  // 符号
+  '100':'💯','tm':'™️','copyright':'©️','registered':'®️',
+  // 动物
+  'cat':'🐱','dog':'🐶','rabbit':'🐰','bear':'🐻','panda':'🐼','pig':'🐷',
+  'monkey':'🐵','chicken':'🐔','penguin':'🐧','frog':'🐸','unicorn':'🦄',
+};
+
+// ===== 初始化 CodeMirror 编辑器 =====
+var editor = CodeMirror(document.getElementById('editor'), {
+  mode: 'markdown',
+  lineNumbers: true,
+  matchBrackets: true,
+  styleActiveLine: true,
+  lineWrapping: true,
+  tabSize: 2,
+  extraKeys: { Tab: function(cm) { cm.replaceSelection('  '); } }
+});
+
+// 修复 flex 布局下 CodeMirror 滚动问题
+setTimeout(function() { editor.refresh(); }, 100);
+window.addEventListener('resize', function() { editor.refresh(); });
+
+// ===== 初始化 Mermaid =====
+try {
+  mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose', logLevel: 'error' });
+} catch(e) {}
+
+// ===== 配置 marked 使用 highlight.js =====
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  highlight: function(code, lang) {
+    if (lang === 'mermaid' || lang === 'flow' || lang === 'sequence' || lang === 'gantt' || lang === 'pie' || lang === 'infographic') return code;
+    if (lang && hljs.getLanguage(lang)) {
+      return hljs.highlight(code, { language: lang }).value;
+    }
+    return hljs.highlightAuto(code).value;
+  }
+});
+
+// ===== 实时预览 =====
+const preview = document.getElementById('preview');
+
+function updatePreview() {
+  var md = editor.getValue();
+  var math = [];
+  var plantumls = [];
+  var uid = 0;
+
+  // === 预处理：保护特殊语法，防止被 marked 破坏 ===
+
+  // Step 0a: Emoji 短代码替换 :smile: → 😊
+  md = md.replace(/:([a-z0-9_+-]+):/g, function(m, name) { return EMOJI_MAP[name] || m; });
+
+  // Step 0b: 反引号里 $ \ 临时编码
+  md = md.replace(/```([\s\S]*?)```/g, function(m, body) {
+    return '```' + body.replace(/[\\$]/g, function(c) { return '\x02' + c.charCodeAt(0).toString(16) + '\x02'; }) + '```';
+  });
+  md = md.replace(/`([^`\n]+)`/g, function(m, body) {
+    return '`' + body.replace(/[\\$]/g, function(c) { return '\x02' + c.charCodeAt(0).toString(16) + '\x02'; }) + '`';
+  });
+
+  // Step 1: PlantUML @startuml...@enduml
+  md = md.replace(/@startuml([\s\S]*?)@enduml/g, function(_, uml) {
+    plantumls.push(uml.trim());
+    return '\x01PUML' + (plantumls.length - 1) + '\x01';
+  });
+
+  // Step 2: 块级公式 $$...$$ 和 \[...\]
+  md = md.replace(/\$\$([\s\S]*?)\$\$/g, function(_, f) {
+    math.push({ formula: f.trim(), display: true });
+    return '\x01MATH' + (uid++) + '\x01';
+  });
+  md = md.replace(/\\\[([\s\S]*?)\\\]/g, function(_, f) {
+    math.push({ formula: f.trim(), display: true });
+    return '\x01MATH' + (uid++) + '\x01';
+  });
+
+  // Step 3: 行内公式 $...$ 和 \(...\)
+  md = md.replace(/\$(?!\s)(.+?)(?<!\s)\$/g, function(_, f) {
+    if (/[一-鿿]/.test(f) || f.length > 200) return _;
+    math.push({ formula: f.trim(), display: false });
+    return '\x01MATH' + (uid++) + '\x01';
+  });
+  md = md.replace(/\\\((?!\s)(.+?)(?<!\s)\\\)/g, function(_, f) {
+    if (/[一-鿿]/.test(f) || f.length > 200) return _;
+    math.push({ formula: f.trim(), display: false });
+    return '\x01MATH' + (uid++) + '\x01';
+  });
+
+  // 恢复反引号里的 $ \
+  md = md.replace(/\x02(24|5c)\x02/g, function(_, code) { return String.fromCharCode(parseInt(code, 16)); });
+
+  // === Markdown → HTML ===
+  var html = marked.parse(md);
+
+  // === 后处理：恢复保护的内容 ===
+
+  // PlantUML → <img> 标签
+  html = html.replace(/\x01PUML(\d+)\x01/g, function(_, idx) {
+    var uml = plantumls[parseInt(idx)];
+    try {
+      var encoded = plantumlEncoder.encode(uml);
+      return '<div style="text-align:center;margin:20px 0;"><img src="https://www.plantuml.com/plantuml/svg/' + encoded + '" style="max-width:100%;border-radius:8px;" alt="PlantUML"></div>';
+    } catch(e) {
+      return '<pre style="background:#fff5f5;padding:12px;border-left:3px solid #e74c3c;">PlantUML 错误: ' + e.message + '\n\n' + uml + '</pre>';
+    }
+  });
+
+  // 数学公式 → KaTeX（包裹 data-latex 属性，复制时用它转图片）
+  html = html.replace(/\x01MATH(\d+)\x01/g, function(_, idx) {
+    var item = math[parseInt(idx)];
+    try {
+      var rendered = katex.renderToString(item.formula, { displayMode: item.display, throwOnError: false });
+      var tag = item.display ? 'div' : 'span';
+      return '<' + tag + ' data-latex="' + item.formula.replace(/"/g, '&quot;') + '" data-math-display="' + item.display + '" style="' + (item.display ? 'text-align:center;margin:20px 0;' : '') + '">' + rendered + '</' + tag + '>';
+    } catch(e) {
+      return '<code style="color:#e74c3c;">公式错误: ' + item.formula + '</code>';
+    }
+  });
+
+  preview.innerHTML = html;
+
+  // Ruby 注音：[文字]{注音} 和 [文字]^(注音)
+  // 用 TreeWalker 遍历所有文本节点，比 innerHTML 替换更可靠
+  (function processRuby(root) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    var textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    textNodes.forEach(function(node) {
+      var text = node.textContent;
+      if (!/\[[^\]]+\][\{^]/.test(text)) return;
+
+      var frag = document.createDocumentFragment();
+      var lastIdx = 0;
+
+      text.replace(/\[([^\]]+)\]\^?\{([^}]+)\}/g, function(match, chars, reading, offset) {
+        if (offset > lastIdx) {
+          frag.appendChild(document.createTextNode(text.slice(lastIdx, offset)));
+        }
+
+        var ruby = document.createElement('ruby');
+        var sep = reading.match(/[・．。-]/);
+
+        if (!sep) {
+          ruby.appendChild(document.createTextNode(chars));
+          var rt = document.createElement('rt');
+          rt.textContent = reading;
+          ruby.appendChild(rt);
+        } else {
+          var readings = reading.split(sep[0]);
+          var charsArr = chars.split('');
+          for (var i = 0; i < charsArr.length; i++) {
+            ruby.appendChild(document.createTextNode(charsArr[i]));
+            if (readings[i]) {
+              var rtEl = document.createElement('rt');
+              rtEl.textContent = readings[i];
+              ruby.appendChild(rtEl);
+            }
+          }
+        }
+
+        frag.appendChild(ruby);
+        lastIdx = offset + match.length;
+      });
+
+      if (lastIdx < text.length) {
+        frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+      }
+
+      if (frag.childNodes.length > 0) {
+        node.parentNode.replaceChild(frag, node);
+      }
+    });
+  })(preview);
+
+  // Mermaid
+  preview.querySelectorAll('pre code[class*="language-mermaid"], pre code[class*="language-flow"], pre code[class*="language-sequence"], pre code[class*="language-gantt"], pre code[class*="language-pie"]')
+    .forEach(function(codeEl) {
+      var preEl = codeEl.parentElement;
+      var div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = codeEl.textContent;
+      preEl.replaceWith(div);
+    });
+  var mmds = preview.querySelectorAll('.mermaid');
+  if (mmds.length > 0) {
+    try { mermaid.run({ nodes: mmds }).catch(function() {}); } catch(e) {}
+  }
+
+  // Infographic
+  preview.querySelectorAll('pre code[class*="language-infographic"]')
+    .forEach(function(codeEl, i) {
+      var preEl = codeEl.parentElement;
+      var dsl = codeEl.textContent;
+      var container = document.createElement('div');
+      container.id = 'info-' + i;
+      container.style.cssText = 'width:100%;min-height:400px;margin:20px 0;overflow-x:auto;';
+      preEl.replaceWith(container);
+      try {
+        if (typeof AntVInfographic !== 'undefined') {
+          var InfoCtor = AntVInfographic.Infographic || AntVInfographic;
+          new InfoCtor({
+            container: '#info-' + i,
+            width: 680,
+            height: 'auto',
+          }).render(dsl);
+        } else {
+          container.innerHTML = '<code style="color:#999;">Infographic 库加载中...</code>';
+        }
+      } catch(e) {
+        container.innerHTML = '<code style="color:#e74c3c;">信息图错误: ' + e.message + '</code>';
+      }
+    });
+
+  applyCustomCSS();
+}
+
+// 防抖：300ms 内无输入才触发渲染（减轻 Infographic 等重渲染压力）
+var debounceTimer = null;
+editor.on('change', function() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(updatePreview, 300);
+});
+
+// ===== 主题管理（localStorage 持久化） =====
+const customCSS = document.getElementById('customCSS');
+const themeSelect = document.getElementById('themeSelect');
+const STORAGE_KEY = 'md-editor-themes';
+let styleTag = document.createElement('style');
+styleTag.id = 'custom-style';
+document.head.appendChild(styleTag);
+
+// 读取所有主题
+function getThemes() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch(e) {
+    return {};
+  }
+}
+
+// 保存所有主题
+function saveThemes(themes) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(themes));
+}
+
+// 刷新下拉列表
+function refreshThemeSelect(activeName) {
+  var themes = getThemes();
+  var names = Object.keys(themes);
+  themeSelect.innerHTML = '<option value="__default__">默认（无样式）</option>';
+  names.forEach(function(name) {
+    var sel = activeName && name === activeName ? ' selected' : '';
+    themeSelect.innerHTML += '<option value="' + name + '"' + sel + '>' + name + '</option>';
+  });
+}
+
+// 加载指定主题
+function loadTheme(name) {
+  if (name === '__default__') {
+    customCSS.value = '';
+    applyCustomCSS();
+    localStorage.setItem('md-editor-last-theme', '');
+    return;
+  }
+  var themes = getThemes();
+  if (themes[name] !== undefined) {
+    customCSS.value = themes[name];
+    applyCustomCSS();
+    localStorage.setItem('md-editor-last-theme', name);
+  }
+}
+
+// 保存当前CSS为命名主题
+function saveTheme() {
+  var name = prompt('给这个样式起个名字（如：清新风格、暗色主题）：', '我的样式');
+  if (!name || name === '__default__') return;
+  var themes = getThemes();
+  themes[name] = customCSS.value;
+  saveThemes(themes);
+  refreshThemeSelect(name);
+  alert('样式 "' + name + '" 已保存！刷新页面后可在下拉列表中找到。');
+}
+
+// 删除当前选中的主题
+function deleteTheme() {
+  var cur = themeSelect.value;
+  if (cur === '__default__') { alert('默认主题不能删除。'); return; }
+  if (!confirm('确定要删除主题 "' + cur + '" 吗？')) return;
+  var themes = getThemes();
+  delete themes[cur];
+  saveThemes(themes);
+  refreshThemeSelect();
+  customCSS.value = '';
+  applyCustomCSS();
+}
+
+// 自动保存：每次编辑 CSS 时更新当前选中主题的内容
+customCSS.addEventListener('input', function() {
+  applyCustomCSS();
+  var cur = themeSelect.value;
+  if (cur !== '__default__') {
+    var themes = getThemes();
+    themes[cur] = customCSS.value;
+    saveThemes(themes);
+  }
+});
+
+function applyCustomCSS() {
+  styleTag.textContent = customCSS.value;
+}
+
+function toggleCSS() {
+  document.getElementById('cssPanel').classList.toggle('hidden');
+  document.getElementById('helpPanel').classList.add('hidden');
+  if (!document.getElementById('cssPanel').classList.contains('hidden')) {
+    refreshThemeSelect(themeSelect.value);
+    customCSS.focus();
+  }
+}
+
+// ===== 启动时恢复上次使用的主题 =====
+(function initTheme() {
+  var themes = getThemes();
+  var names = Object.keys(themes);
+  if (names.length > 0) {
+    var last = localStorage.getItem('md-editor-last-theme') || names[0];
+    refreshThemeSelect(last);
+    loadTheme(last);
+  } else {
+    refreshThemeSelect();
+  }
+})();
+
+// ===== 格式帮助 =====
+function toggleHelp() {
+  document.getElementById('helpPanel').classList.toggle('hidden');
+  document.getElementById('cssPanel').classList.add('hidden');
+}
+
+// ===== 深色/浅色切换 =====
+function toggleTheme() {
+  document.body.classList.toggle('dark');
+}
+
+// ===== 同步滚动 =====
+let syncEnabled = false;
+let syncing = false;
+const syncBtn = document.getElementById('syncBtn');
+const previewPane = document.querySelector('.preview-pane');
+
+function toggleSync() {
+  syncEnabled = !syncEnabled;
+  if (syncEnabled) {
+    syncBtn.textContent = '同步滚动: 开';
+    syncBtn.classList.add('active');
+  } else {
+    syncBtn.textContent = '同步滚动: 关';
+    syncBtn.classList.remove('active');
+  }
+}
+
+// CodeMirror 的滚动元素是 .CodeMirror-scroll
+var editorScrollEl = document.querySelector('.editor-pane .CodeMirror-scroll');
+editorScrollEl.addEventListener('scroll', function() {
+  if (!syncEnabled || syncing) return;
+  syncing = true;
+  var pct = editorScrollEl.scrollTop / (editorScrollEl.scrollHeight - editorScrollEl.clientHeight);
+  previewPane.scrollTop = pct * (previewPane.scrollHeight - previewPane.clientHeight);
+  syncing = false;
+});
+
+previewPane.addEventListener('scroll', function() {
+  if (!syncEnabled || syncing) return;
+  syncing = true;
+  var pct = previewPane.scrollTop / (previewPane.scrollHeight - previewPane.clientHeight);
+  editorScrollEl.scrollTop = pct * (editorScrollEl.scrollHeight - editorScrollEl.clientHeight);
+  syncing = false;
+});
+
+// ===== 复制功能 =====
+function copyHTML() {
+  var clone = preview.cloneNode(true);
+
+  // ── 第1步：把浏览器计算好的样式写入内联（微信只认内联样式）──
+
+  // KaTeX 公式：从原预览元素获取计算样式，复制到克隆元素
+  preview.querySelectorAll('.katex, .katex *').forEach(function(orig, i) {
+    var clones = clone.querySelectorAll('.katex, .katex *');
+    if (i >= clones.length) return;
+    var cl = clones[i];
+    var cs = getComputedStyle(orig);
+
+    // 合并已有内联样式和计算样式中的关键属性
+    var existing = cl.getAttribute('style') || '';
+    var keyProps = ['font-family','font-size','font-style','font-weight','color','fill','stroke'];
+    var add = '';
+    keyProps.forEach(function(p) {
+      var v = cs.getPropertyValue(p);
+      if (v && v !== 'normal' && v !== 'auto') {
+        // 避免重复
+        if (existing.indexOf(p) === -1) add += p + ':' + v + ';';
+      }
+    });
+    if (add) cl.setAttribute('style', existing + add);
+  });
+
+  // SVG 图表（Mermaid / Infographic）：保留内联 SVG，确保 background 有值
+  clone.querySelectorAll('svg').forEach(function(svg) {
+    var existing = svg.getAttribute('style') || '';
+    if (existing.indexOf('background') === -1) {
+      svg.setAttribute('style', existing + 'background:#ffffff;');
+    }
+  });
+
+  // ── 第2步：清洗 HTML ──
+  clone.querySelectorAll('[id]').forEach(function(el) { el.removeAttribute('id'); });
+  clone.querySelectorAll('[class]').forEach(function(el) { el.removeAttribute('class'); });
+  clone.querySelectorAll('[data-latex], [data-math-display]').forEach(function(el) {
+    el.removeAttribute('data-latex');
+    el.removeAttribute('data-math-display');
+  });
+
+  // 代码块
+  clone.querySelectorAll('pre').forEach(function(el) {
+    el.setAttribute('style', 'background:#1e1e1e;color:#d4d4d4;padding:36px 20px 16px;border-radius:10px;overflow-x:auto;line-height:1.7;font-size:14px;white-space:pre-wrap;word-break:break-all;');
+  });
+  clone.querySelectorAll('pre code').forEach(function(el) {
+    el.setAttribute('style', 'background:none;padding:0;font-family:Consolas,Courier New,monospace;font-size:14px;');
+  });
+  clone.querySelectorAll('p > code, li > code').forEach(function(el) {
+    el.setAttribute('style', 'background:#f0f0f0;padding:2px 6px;border-radius:3px;font-family:Consolas,Courier New,monospace;font-size:0.9em;color:#c7254e;');
+  });
+
+  // 表格
+  clone.querySelectorAll('table').forEach(function(el) {
+    el.setAttribute('style', 'width:100%;border-collapse:collapse;margin:16px 0;');
+  });
+  clone.querySelectorAll('th').forEach(function(el) {
+    el.setAttribute('style', 'border:1px solid #ddd;padding:8px 12px;text-align:left;background:#f5f5f5;font-weight:bold;');
+  });
+  clone.querySelectorAll('td').forEach(function(el) {
+    el.setAttribute('style', 'border:1px solid #ddd;padding:8px 12px;text-align:left;');
+  });
+
+  // 引用块
+  clone.querySelectorAll('blockquote').forEach(function(el) {
+    el.setAttribute('style', 'margin:16px 0;padding:12px 16px;border-left:4px solid #2ab1ee;background:#f0f9ff;color:#555;');
+  });
+
+  // 图片通用
+  clone.querySelectorAll('img').forEach(function(el) {
+    var es = el.getAttribute('style') || '';
+    el.setAttribute('style', es + 'max-width:100%;');
+  });
+
+  var cleaned = clone.innerHTML;
+  var htmlContent = '<div style="font-family:Times New Roman,宋体,serif;font-size:15px;line-height:1.8;color:#333;max-width:680px;margin:0 auto;">' + cleaned + '</div>';
+
+  var container = document.createElement('div');
+  container.innerHTML = htmlContent;
+  container.style.position = 'fixed';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  document.body.appendChild(container);
+
+  var range = document.createRange();
+  range.selectNodeContents(container);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  try {
+    document.execCommand('copy');
+    alert('文章已复制，到公众号后台 Ctrl+V 粘贴即可');
+  } catch (e) {
+    alert('复制失败，请手动全选右边内容后 Ctrl+C');
+  }
+
+  sel.removeAllRanges();
+  document.body.removeChild(container);
+}
+
+function copyText() {
+  var mdText = editor.getValue();
+  var textarea = document.createElement('textarea');
+  textarea.value = mdText;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+  alert('Markdown 原文已复制');
+}
+
+// ===== 插入示例文章 =====
+function insertDemo() {
+  var demo = document.getElementById('demoContent');
+  if (demo) {
+    editor.setValue(demo.textContent.trim());
+    updatePreview();
+  }
+}
+
+// ===== 启动：加载示例 =====
+insertDemo();
+</script>
+
+</body>
+</html>
