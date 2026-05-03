@@ -210,21 +210,24 @@ body {
 }
 .css-toolbar button:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-/* ===== 格式帮助面板 ===== */
+/* ===== 格式帮助面板（右侧竖排） ===== */
 .help-panel {
-  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   background: var(--toolbar-bg);
-  padding: 16px 20px;
-  font-size: 13px;
-  line-height: 1.8;
-  color: var(--text);
+  width: 360px;
   flex-shrink: 0;
-  max-height: 200px;
   overflow-y: auto;
+  padding: 16px 18px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--text);
 }
 .help-panel.hidden { display: none; }
-.help-panel code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-family: Consolas,monospace; }
+.help-panel code { background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 3px; font-family: Consolas,monospace; font-size: 0.92em; }
 .help-panel strong { color: var(--accent); }
+.help-panel h4 { font-size: 14px; margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.help-panel ul { padding-left: 18px; margin: 4px 0 12px; }
+.help-panel li { margin: 2px 0; }
 
 /* ===== 标题样式 ===== */
 .preview-content h1 {
@@ -317,6 +320,17 @@ body {
 }
 .preview-content th { background: #f5f5f5; font-weight: bold; }
 
+/* 定义列表 */
+.preview-content dl { margin: 16px 0; }
+.preview-content dt { font-weight: 600; margin: 12px 0 4px; color: #2c3e50; }
+.preview-content dd { margin: 0 0 8px 20px; color: #555; }
+
+/* 脚注 */
+.preview-content .footnotes { font-size: 0.9em; color: #666; margin-top: 32px; }
+.preview-content .footnotes ol { padding-left: 20px; }
+.preview-content .footnotes li { margin: 6px 0; }
+.preview-content .footnotes li:target { background: #fffde7; padding: 4px 8px; border-radius: 4px; }
+
 /* 数学公式 */
 .preview-content .katex-display { margin: 20px 0; overflow-x: auto; }
 .preview-content .katex { font-size: 1.1em; }
@@ -391,31 +405,63 @@ body.dark .preview-content .mermaid { background: #2d2d2d; border-color: #3e3e3e
         <span style="font-size:11px;color:var(--text-light);">自动保存</span>
       </div>
     </div>
+    <!-- 右侧竖排格式帮助 -->
+    <div id="helpPanel" class="help-panel hidden">
+      <h4>📝 基本语法</h4>
+      <ul>
+        <li>标题：<code># H1</code> <code>## H2</code> ... <code>###### H6</code></li>
+        <li>粗体：<code>**文字**</code> 斜体：<code>*文字*</code> 粗斜体：<code>***文字***</code></li>
+        <li>删除线：<code>~~文字~~</code></li>
+        <li>无序列表：<code>-</code> <code>*</code> <code>+</code> 有序列表：<code>1.</code></li>
+        <li>任务列表：<code>- [ ] 待办</code> <code>- [x] 完成</code></li>
+        <li>引用：<code>&gt; 内容</code> 嵌套用 <code>&gt;&gt;</code></li>
+        <li>行内代码：<code>&#96;code&#96;</code> 代码块：<code>&#96;&#96;&#96;语言</code></li>
+        <li>分割线：<code>---</code> <code>***</code> <code>___</code></li>
+        <li>链接：<code>[文字](url)</code> 参考式：<code>[文字][id]</code></li>
+        <li>自动链接：<code>&lt;url&gt;</code></li>
+        <li>图片：<code>![描述](url)</code></li>
+        <li>转义：<code>\*</code> 内嵌 HTML：直接写标签</li>
+      </ul>
+      <h4>📊 扩展语法</h4>
+      <ul>
+        <li>表格：<code>| A | B |</code> + 分隔行 <code>|---|---|</code></li>
+        <li>对齐：<code>:---</code>左 <code>:---:</code>中 <code>---:</code>右</li>
+        <li>脚注：文中<code>[^1]</code> + 文末<code>[^1]: 内容</code></li>
+        <li>定义列表：术语一行 + <code>: 定义</code></li>
+        <li>表情：<code>:joy:</code> <code>:heart:</code> <code>:fire:</code> <code>:rocket:</code> <code>:tada:</code> <code>:+1:</code> 等 100+</li>
+      </ul>
+      <h4>🔬 LaTeX 公式</h4>
+      <ul>
+        <li>行内：<code>$E=mc^2$</code> 或 <code>\(公式\)</code></li>
+        <li>块级：<code>$$公式$$</code> 或 <code>\[公式\]</code></li>
+      </ul>
+      <h4>📈 图表</h4>
+      <ul>
+        <li>Mermaid：<code>&#96;&#96;&#96;mermaid</code> 流程图/时序图/饼图</li>
+        <li>PlantUML：<code>&#96;&#96;&#96;plantuml</code> 或 <code>@startuml...@enduml</code></li>
+        <li>Infographic：<code>&#96;&#96;&#96;infographic</code> 数据信息图</li>
+      </ul>
+      <h4>🗾 其他</h4>
+      <ul>
+        <li>Ruby 注音：<code>[文字]{注音}</code> 或 <code>[文字]^(注音)</code></li>
+        <li>分隔符：<code>・ ． 。 -</code></li>
+      </ul>
+      <h4>🎨 常用 CSS（贴到样式面板）</h4>
+      <ul>
+        <li>字号：<code>p { font-size: 16px; }</code></li>
+        <li>行距：<code>p { line-height: 2; }</code></li>
+        <li>字体：<code>* { font-family: "微软雅黑"; }</code></li>
+        <li>主题色：<code>a { color: #e74c3c; }</code></li>
+        <li>标题居中：<code>h1 { text-align: center; border-bottom: none; }</code></li>
+        <li>标题装饰线：<code>h1::after { content:''; display:block; width:50px; height:3px; background:#2ab1ee; margin:12px auto 0; }</code></li>
+        <li>去代码块圆点：<code>pre::before { display: none; }</code></li>
+        <li>白色代码块：<code>pre { background: #f5f5f5 !important; }</code></li>
+      </ul>
+      <p style="color:var(--accent);margin-top:12px;font-size:12px;">📖 完整样式指南 → 同目录 css.md</p>
+    </div>
   </div>
 </div>
 
-<!-- 格式帮助面板 -->
-<div id="helpPanel" class="help-panel hidden">
-  <strong>📝 Markdown 语法</strong><br>
-  <code># 标题</code> <code>## 标题</code> <code>### 标题</code> · <code>**粗体**</code> <code>*斜体*</code> · <code>[文字](链接)</code> <code>![](图片地址)</code><br>
-  <code>- 列表</code> <code>1. 列表</code> · <code>&gt; 引用</code> · <code>&#96;&#96;&#96;语言</code>代码<code>&#96;&#96;&#96;</code><br>
-  <code>| 列 | 列 |</code>表格 · <code>---</code>分割线 · <code>$$公式$$</code> 数学 · <code>&#96;&#96;&#96;mermaid</code> 流程图<br>
-  <code>&#96;&#96;&#96;infographic</code> 信息图 · <code>@startuml</code> PlantUML · <code>[字]{音}</code> 注音<br>
-  <code>:joy:</code> 表情 &nbsp; 常用：<code>:smile:</code> <code>:heart:</code> <code>:fire:</code> <code>:rocket:</code> <code>:tada:</code> <code>:+1:</code><br><br>
-
-  <strong>🎨 常用 CSS（粘贴到右侧样式面板）</strong><br>
-  正文字号：<code>p { font-size: 16px; }</code> &nbsp; 行距：<code>p { line-height: 2; }</code> &nbsp; 字体：<code>* { font-family: "微软雅黑"; }</code><br>
-  主题色：<code>a { color: #e74c3c; }</code> &nbsp; 标题色：<code>h1 { color: #333; }</code><br>
-  标题居中：<code>h1 { text-align: center; border-bottom: none; }</code><br>
-  标题装饰线：<code>h1::after { content:''; display:block; width:50px; height:3px; background:#2ab1ee; margin:12px auto 0; }</code><br>
-  去掉标题装饰：<code>h1 { border-bottom: none; } h2 { border-left: none; padding-left: 0; }</code><br>
-  改竖线颜色：<code>h2 { border-left-color: #e74c3c; }</code><br>
-  去掉代码块圆点：<code>pre::before { display: none; }</code><br>
-  改回白色代码块：<code>pre { background: #f5f5f5 !important; } pre code { color: #333 !important; }</code><br>
-  图片圆角/阴影：<code>img { border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }</code><br><br>
-
-  <strong>📖 完整样式指南：</strong>打开同目录下的 <code>css.md</code> 文件，含四种预设主题、颜色速查表、所有元素的详细设置说明。
-</div>
 
 <!-- 示例文章内容 -->
 <script type="text/markdown" id="demoContent"># 探索 Markdown 的奇妙世界
@@ -571,6 +617,27 @@ data
 
 常用表情：:smile: :joy: :heart: :fire: :rocket: :tada: :+1: :pray:
 
+### 7. 表格对齐
+
+| 左对齐 | 居中 | 右对齐 |
+| :--- | :---: | ---: |
+| 内容 | 内容 | 内容 |
+| 左 | 中 | 右 |
+
+### 8. 脚注
+
+这是一段带脚注的文字[^1]。
+
+[^1]: 这是脚注的内容，会显示在文章末尾。
+
+### 9. 定义列表
+
+Markdown
+: 一种轻量级标记语言，用于格式化纯文本。
+
+HTML
+: 超文本标记语言，是网页的基础。
+
 ## 结语
 
 Markdown 是一种简单、强大且易于掌握的标记语言。希望这篇内容能够带你全面了解 Markdown 的潜力，让你的写作更加丰富多彩！
@@ -659,6 +726,33 @@ function updatePreview() {
   var plantumls = [];
   var uid = 0;
 
+  // === 预处理：扩展语法（marked.js 不支持的）===
+
+  // 脚注：提取 [^id]: 定义 + 替换 [^id] 引用
+  var footnotes = {};
+  var fnIndex = 1;
+  md = md.replace(/\[\^([^\]]+)\]:\s*(.+)/g, function(_, id, content) {
+    if (!footnotes[id]) { footnotes[id] = { num: fnIndex++, content: content.trim() }; }
+    return '';
+  });
+  md = md.replace(/\[\^([^\]]+)\]/g, function(_, id) {
+    var fn = footnotes[id];
+    if (!fn) {
+      // 未定义脚注，自动生成编号
+      footnotes[id] = { num: fnIndex++, content: '' };
+      fn = footnotes[id];
+    }
+    return '<sup><a href="#fn' + fn.num + '" id="fnref' + fn.num + '" style="color:var(--accent);text-decoration:none;font-size:0.85em;">[' + fn.num + ']</a></sup>';
+  });
+
+  // 定义列表：Term\n: Definition → 占位符，等 marked 处理完再还原
+  var defLists = [];
+  md = md.replace(/(^|\n\n)([^\n]+)\n(:\s+[^\n]+(?:\n:\s+[^\n]+)*)/g, function(_, prefix, term, defs) {
+    var dd = defs.replace(/\n:\s+/g, '|||').split('|||').map(function(d) { return '<dd>' + d.trim() + '</dd>'; }).join('');
+    defLists.push('<dl><dt>' + term.trim() + '</dt>' + dd + '</dl>');
+    return prefix + '\x01DL' + (defLists.length - 1) + '\x01';
+  });
+
   // === 预处理：保护特殊语法，防止被 marked 破坏 ===
 
   // Step 0a: Emoji 短代码替换 :smile: → 😊
@@ -706,7 +800,13 @@ function updatePreview() {
   // === Markdown → HTML ===
   var html = marked.parse(md);
 
+  // 表格对齐：marked.js 用 deprecated align 属性，CSS 覆盖不了它，转成 inline style
+  html = html.replace(/<(th|td) align="(left|center|right)"/g, '<$1 style="text-align:$2"');
+
   // === 后处理：恢复保护的内容 ===
+
+  // 定义列表占位符 → 真实 HTML
+  html = html.replace(/\x01DL(\d+)\x01/g, function(_, idx) { return defLists[parseInt(idx)]; });
 
   // PlantUML → <img> 标签
   html = html.replace(/\x01PUML(\d+)\x01/g, function(_, idx) {
@@ -732,6 +832,18 @@ function updatePreview() {
   });
 
   preview.innerHTML = html;
+
+  // 脚注：在末尾追加脚注列表
+  var fnKeys = Object.keys(footnotes);
+  if (fnKeys.length > 0) {
+    var fnHtml = '<hr><div class="footnotes"><strong>脚注：</strong><ol>';
+    fnKeys.forEach(function(id) {
+      var fn = footnotes[id];
+      fnHtml += '<li id="fn' + fn.num + '">' + (fn.content || '（无内容）') + ' <a href="#fnref' + fn.num + '" style="color:var(--accent);text-decoration:none;font-size:0.85em;">↩</a></li>';
+    });
+    fnHtml += '</ol></div>';
+    preview.innerHTML += fnHtml;
+  }
 
   // Ruby 注音：[文字]{注音} 和 [文字]^(注音)
   // 用 TreeWalker 遍历所有文本节点，比 innerHTML 替换更可靠
@@ -1051,10 +1163,14 @@ function copyHTML() {
     el.setAttribute('style', 'width:100%;border-collapse:collapse;margin:16px 0;');
   });
   clone.querySelectorAll('th').forEach(function(el) {
-    el.setAttribute('style', 'border:1px solid #ddd;padding:8px 12px;text-align:left;background:#f5f5f5;font-weight:bold;');
+    var old = el.getAttribute('style') || '';
+    var align = old.match(/text-align:\s*[^;]+/) ? old.match(/text-align:\s*[^;]+/)[0] : 'text-align:left';
+    el.setAttribute('style', 'border:1px solid #ddd;padding:8px 12px;' + align + ';background:#f5f5f5;font-weight:bold;');
   });
   clone.querySelectorAll('td').forEach(function(el) {
-    el.setAttribute('style', 'border:1px solid #ddd;padding:8px 12px;text-align:left;');
+    var old = el.getAttribute('style') || '';
+    var align = old.match(/text-align:\s*[^;]+/) ? old.match(/text-align:\s*[^;]+/)[0] : 'text-align:left';
+    el.setAttribute('style', 'border:1px solid #ddd;padding:8px 12px;' + align + ';');
   });
 
   // 引用块
